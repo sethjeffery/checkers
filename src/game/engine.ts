@@ -1,4 +1,6 @@
-import type { AppliedMove, Board, Move, Piece, Player } from "./types";
+import type { AISkill, AppliedMove, Board, Move, Piece, Player } from "./types";
+
+const HARD_SEARCH_DEPTH = 4;
 
 export function createInitialBoard(startId = 1): { board: Board; nextId: number } {
   const board: Board = Array.from({ length: 8 }, () => Array(8).fill(null));
@@ -137,6 +139,29 @@ export function chooseBestMove(
   return bestMove;
 }
 
+export function chooseMoveBySkill(
+  skill: AISkill,
+  moves: Move[],
+  board: Board,
+  player: Player,
+  random: () => number = Math.random
+): Move | null {
+  if (!moves.length) {
+    return null;
+  }
+
+  if (skill === "easy") {
+    const index = Math.min(moves.length - 1, Math.floor(random() * moves.length));
+    return moves[index];
+  }
+
+  if (skill === "medium") {
+    return chooseBestMove(moves, board, player, random);
+  }
+
+  return chooseBestLookaheadMove(moves, board, player, random);
+}
+
 export function findPiece(pieceId: number, board: Board): { row: number; col: number; piece: Piece } | null {
   for (let row = 0; row < 8; row += 1) {
     for (let col = 0; col < 8; col += 1) {
@@ -250,6 +275,136 @@ function cloneBoard(board: Board): Board {
       return { ...piece };
     })
   );
+}
+
+function chooseBestLookaheadMove(
+  moves: Move[],
+  board: Board,
+  player: Player,
+  random: () => number
+): Move | null {
+  let bestMove = moves[0];
+  let bestScore = -Infinity;
+
+  for (const move of moves) {
+    const next = applyMove(board, move, player);
+    const score = minimax(
+      next.board,
+      next.currentPlayer,
+      next.forcedPieceId,
+      player,
+      HARD_SEARCH_DEPTH - 1,
+      -Infinity,
+      Infinity,
+      random
+    );
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = move;
+      continue;
+    }
+
+    if (Math.abs(score - bestScore) < 0.001 && random() > 0.5) {
+      bestMove = move;
+    }
+  }
+
+  return bestMove;
+}
+
+function minimax(
+  board: Board,
+  currentPlayer: Player,
+  forcedPieceId: number | null,
+  maximizingPlayer: Player,
+  depth: number,
+  alpha: number,
+  beta: number,
+  random: () => number
+): number {
+  const moves = getLegalMoves(board, currentPlayer, forcedPieceId);
+  if (!moves.length) {
+    return currentPlayer === maximizingPlayer ? -1000 - depth : 1000 + depth;
+  }
+
+  if (depth <= 0) {
+    return evaluateBoard(board, maximizingPlayer) + random() * 0.01;
+  }
+
+  if (currentPlayer === maximizingPlayer) {
+    let value = -Infinity;
+    for (const move of moves) {
+      const next = applyMove(board, move, currentPlayer);
+      value = Math.max(
+        value,
+        minimax(
+          next.board,
+          next.currentPlayer,
+          next.forcedPieceId,
+          maximizingPlayer,
+          depth - 1,
+          alpha,
+          beta,
+          random
+        )
+      );
+      alpha = Math.max(alpha, value);
+      if (beta <= alpha) {
+        break;
+      }
+    }
+    return value;
+  }
+
+  let value = Infinity;
+  for (const move of moves) {
+    const next = applyMove(board, move, currentPlayer);
+    value = Math.min(
+      value,
+      minimax(
+        next.board,
+        next.currentPlayer,
+        next.forcedPieceId,
+        maximizingPlayer,
+        depth - 1,
+        alpha,
+        beta,
+        random
+      )
+    );
+    beta = Math.min(beta, value);
+    if (beta <= alpha) {
+      break;
+    }
+  }
+  return value;
+}
+
+function evaluateBoard(board: Board, maximizingPlayer: Player): number {
+  let score = 0;
+
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      const piece = board[row][col];
+      if (!piece) {
+        continue;
+      }
+      const promotionDistance = piece.player === "light" ? row : 7 - row;
+      const advancement = (7 - promotionDistance) / 7;
+      const centerDistance = Math.abs(row - 3.5) + Math.abs(col - 3.5);
+      const centerControl = (7 - centerDistance) * 0.05;
+      const pieceValue = (piece.king ? 3.8 : 1.2) + advancement * 0.35 + centerControl;
+
+      score += piece.player === maximizingPlayer ? pieceValue : -pieceValue;
+    }
+  }
+
+  const myMobility = getLegalMoves(board, maximizingPlayer, null).length;
+  const theirMobility = getLegalMoves(board, otherPlayer(maximizingPlayer), null).length;
+  score += (myMobility - theirMobility) * 0.06;
+
+  return score;
 }
 
 function scoreMove(move: Move, board: Board, player: Player, random: () => number): number {

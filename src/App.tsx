@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { chooseBestMove } from "./game/engine";
+import { chooseMoveBySkill } from "./game/engine";
 import { Board } from "./components/Board";
 import { BotGuide } from "./components/BotGuide";
 import { useGameStore } from "./store/useGameStore";
-import type { Player } from "./game/types";
+import type { AISkill, Player } from "./game/types";
 
 type TutorialTipId = "diagonal-forward" | "must-jump" | "chain-jump" | "king-move";
 
@@ -29,16 +29,19 @@ const BOT_UNDER_ATTACK_LINES = [
 const BOT_CAPTURE_LINES = ["Got one!", "I saw that move coming.", "Your piece is mine.", "That was a clean capture."];
 const BOT_AFTER_MOVE_LINES = ["Your turn.", "Show me what you've got.", "Your move."];
 const AI_MOVE_DELAY_MS = 1200;
+const AI_SKILLS: AISkill[] = ["easy", "medium", "hard"];
 
 export default function App() {
   const [tutorialSeen, setTutorialSeen] = useState<Set<TutorialTipId>>(() => loadTutorialTips());
   const tutorialSeenRef = useRef<Set<TutorialTipId>>(tutorialSeen);
   const [botMessage, setBotMessage] = useState("Pick a mode to begin.");
+  const [titleAiSkill, setTitleAiSkill] = useState<AISkill>("medium");
   const previousBotLineRef = useRef<string | null>(null);
 
   const {
     screen,
     mode,
+    aiSkill,
     board,
     currentPlayer,
     forcedPieceId,
@@ -57,7 +60,7 @@ export default function App() {
   } = useGameStore();
 
   const isHumanTurn = mode === "two" || currentPlayer === "light";
-  const modeLabel = mode === "one" ? "One Player" : "Two Players";
+  const modeLabel = mode === "one" ? `One Player (${skillDisplayName(aiSkill)})` : "Two Players";
   const firstTimeTutorialActive = tutorialSeen.size < TUTORIAL_TIP_IDS.length;
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function App() {
     snapshot.setWaitingForComputer(true);
     const timer = window.setTimeout(() => {
       const state = useGameStore.getState();
-      const move = chooseBestMove(state.legalMoves, state.board, state.currentPlayer);
+      const move = chooseMoveBySkill(state.aiSkill, state.legalMoves, state.board, state.currentPlayer);
       state.setWaitingForComputer(false);
       if (move) {
         state.commitMove(move);
@@ -159,7 +162,7 @@ export default function App() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [currentPlayer, gameOver, legalMoves, mode, screen]);
+  }, [aiSkill, currentPlayer, gameOver, legalMoves, mode, screen]);
 
   useEffect(() => {
     if (screen !== "game" || mode !== "one" || !waitingForComputer || gameOver) {
@@ -233,7 +236,7 @@ export default function App() {
   }, [gameOver, lastMoveEvent, mode, maybeShowTutorialTip, sayRandom, scheduleSay, screen, winner]);
 
   function handleStart(modeToStart: "one" | "two") {
-    startGame(modeToStart, true);
+    startGame(modeToStart, true, titleAiSkill);
   }
 
   function handleHint() {
@@ -297,6 +300,22 @@ export default function App() {
               <p className="subtitle">
                 An isometric 2.5D draughts board with a live coach bot to guide new players.
               </p>
+              <div className="skill-picker" role="group" aria-label="Computer skill">
+                <p className="skill-label">Computer Skill</p>
+                <div className="skill-options">
+                  {AI_SKILLS.map((skill) => (
+                    <button
+                      key={skill}
+                      type="button"
+                      className={`skill-btn${titleAiSkill === skill ? " active" : ""}`}
+                      onClick={() => setTitleAiSkill(skill)}
+                      aria-pressed={titleAiSkill === skill}
+                    >
+                      {skillDisplayName(skill)}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="title-actions">
                 <button type="button" className="big-btn" onClick={() => handleStart("one")}>
                   One Player
@@ -403,4 +422,14 @@ function pickRandomLine(lines: string[], previousLine: string | null): string {
 
 function playerDisplayName(player: Player): string {
   return player === "light" ? "Red" : "Blue";
+}
+
+function skillDisplayName(skill: AISkill): string {
+  if (skill === "easy") {
+    return "Easy";
+  }
+  if (skill === "hard") {
+    return "Hard";
+  }
+  return "Medium";
 }

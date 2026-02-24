@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { applyMove, chooseBestMove, createInitialBoard, getLegalMoves, isSameMove, otherPlayer } from "../game/engine";
-import type { Board, Mode, Move, MoveEvent, Player, Screen } from "../game/types";
+import type { AISkill, Board, Mode, Move, MoveEvent, Player, Screen } from "../game/types";
 
 interface GameState {
   screen: Screen;
   mode: Mode;
+  aiSkill: AISkill;
   tutorialEnabled: boolean;
   board: Board;
   currentPlayer: Player;
@@ -17,7 +18,7 @@ interface GameState {
   tipIndex: number;
   capturedFlashId: number | null;
   lastMoveEvent: MoveEvent | null;
-  startGame: (mode: Mode, tutorialEnabled: boolean) => void;
+  startGame: (mode: Mode, tutorialEnabled: boolean, aiSkill?: AISkill) => void;
   restartGame: () => void;
   goHome: () => void;
   setWaitingForComputer: (value: boolean) => void;
@@ -34,6 +35,7 @@ const initial = createInitialBoard(1);
 export const useGameStore = create<GameState>((set, get) => ({
   screen: "title",
   mode: "one",
+  aiSkill: "medium",
   tutorialEnabled: false,
   board: initial.board,
   currentPlayer: "light",
@@ -47,11 +49,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   capturedFlashId: null,
   lastMoveEvent: null,
 
-  startGame: (mode, tutorialEnabled) => {
+  startGame: (mode, tutorialEnabled, aiSkill = "medium") => {
     const seeded = createInitialBoard(1);
     set({
       screen: "game",
       mode,
+      aiSkill,
       tutorialEnabled,
       board: seeded.board,
       currentPlayer: "light",
@@ -68,8 +71,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   restartGame: () => {
-    const { mode, tutorialEnabled } = get();
-    get().startGame(mode, tutorialEnabled);
+    const { mode, tutorialEnabled, aiSkill } = get();
+    get().startGame(mode, tutorialEnabled, aiSkill);
   },
 
   goHome: () => {

@@ -1,6 +1,7 @@
 export type Player = "light" | "dark";
 export type Mode = "one" | "two";
 export type Screen = "title" | "game";
+export type AISkill = "easy" | "medium" | "hard";
 
 export interface Piece {
   id: number;

@@ -75,6 +75,46 @@ h1 {
   flex-wrap: wrap;
 }
 
+.skill-picker {
+  margin-top: 18px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.skill-label {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.skill-options {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.skill-btn {
+  min-width: 88px;
+  padding: 8px 12px;
+  background: #d4b28b;
+  box-shadow: 0 4px 0 #b78d62;
+}
+
+.skill-btn:active {
+  box-shadow: 0 2px 0 #b78d62;
+}
+
+.skill-btn.active {
+  background: #3f8b73;
+  box-shadow: 0 4px 0 #2e6b58;
+}
+
+.skill-btn.active:active {
+  box-shadow: 0 2px 0 #2e6b58;
+}
+
 button {
   font-family: inherit;
   border: 0;

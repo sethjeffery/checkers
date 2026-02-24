@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { applyMove, chooseBestMove, createInitialBoard, getLegalMoves, isDarkSquare, isSameMove } from "./engine";
+import {
+  applyMove,
+  chooseBestMove,
+  chooseMoveBySkill,
+  createInitialBoard,
+  getLegalMoves,
+  isDarkSquare,
+  isSameMove
+} from "./engine";
 import type { Board, Move, Piece } from "./types";
 
 describe("engine", () => {
@@ -96,6 +104,29 @@ describe("engine", () => {
 
     const choice = chooseBestMove([slideMove, captureMove], board, "light", () => 0);
     expect(choice).toEqual(captureMove);
+  });
+
+  it("uses random move selection for easy AI", () => {
+    const board = emptyBoard();
+    place(board, 5, 2, { id: 50, player: "light", king: false });
+    const legalMoves = getLegalMoves(board, "light", null);
+    const choice = chooseMoveBySkill("easy", legalMoves, board, "light", () => 0.99);
+    expect(choice).toEqual(legalMoves[legalMoves.length - 1]);
+  });
+
+  it("hard AI avoids obvious one-turn blunders", () => {
+    const board = emptyBoard();
+    place(board, 2, 1, { id: 60, player: "dark", king: false });
+    place(board, 4, 3, { id: 61, player: "light", king: false });
+
+    const legalMoves = getLegalMoves(board, "dark", null);
+    const riskyMove = legalMoves.find((move) => move.to[0] === 3 && move.to[1] === 2);
+    const safeMove = legalMoves.find((move) => move.to[0] === 3 && move.to[1] === 0);
+    expect(riskyMove).toBeDefined();
+    expect(safeMove).toBeDefined();
+
+    const choice = chooseMoveBySkill("hard", legalMoves, board, "dark", () => 0);
+    expect(choice).toEqual(safeMove);
   });
 
   it("compares move payloads reliably", () => {
